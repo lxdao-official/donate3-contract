@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/lxdao-official/donate3-contract#readme",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.3"
+    "@openzeppelin/contracts": "^4.7.3",
+    "@uniswap/lib": "4.0.1-alpha"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
