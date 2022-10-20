@@ -17,6 +17,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     using ECDSA for bytes32;
     using SafeMath for uint256;
 
+    string public tokenSymbol;
     // fee
     address public feeTo;
     address public feeToSetter;
@@ -50,27 +51,20 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     bytes32 private freeMerkleRoot;
 
-    mapping(address => uint256) public tokensReserve;
-
     event FreeMerkleRootChanged(bytes32 freeMerkleRoot);
-    event donateToken(
+    event donateRecord(
         uint256 pid,
         address from,
         address to,
+        bytes32 symbol,
         uint256 amount,
         bytes msg
-    );
-    event donateERC20(
-        address from,
-        uint256 pid,
-        address to,
-        uint256 amount,
-        bytes32 msg
     );
 
     error CallFailed();
 
-    constructor(address _feeToSetter) {
+    constructor(string memory _tokenSymbol, address _feeToSetter) {
+        tokenSymbol = _tokenSymbol;
         feeToSetter = _feeToSetter;
     }
 
@@ -199,7 +193,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         }
     }
 
-    function donateETH(
+    function donateToken(
         uint256 pid,
         uint256 amountIn,
         address to,
@@ -213,7 +207,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
         Project memory p = _findProject(to, pid);
         require(p.rAddress != address(0), "Donate3: The project is not exist");
-
         require(p.pause == false, "Donate3: The project is paused");
 
         uint32 fee = _merkleProof.length > 0 &&
@@ -223,8 +216,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
         uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
         require(amountOut <= amountIn, "Donate3: Invalid output amount");
-
-        console.log("amountOut:", amountOut);
 
         // transfer
         (bool success, ) = p.rAddress.call{value: amountOut}("");
@@ -237,45 +228,114 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             TransferHelper.safeTransferETH(from, msg.value - amountIn);
         }
 
-        {
-            Record[] storage records = _ownedRecords[to][pid];
-            Record memory record = Record({
-                symbol: "ETH",
-                amount: amountOut,
-                timestamp: uint64(block.timestamp),
-                msg: message
-            });
-            records.push(record);
-        }
-
-        emit donateToken(pid, from, to, amountIn, message);
+        _record(from, to, pid, tokenSymbol, amountOut, message);
     }
 
-    //    function donate(
-    //        uint256 pid,
-    //        address token,
-    //        uint256 amountIn,
-    //        uint32 _fee,
-    //        address to,
-    //        bytes32[] calldata _merkleProof,
-    //        bytes32 message
-    //    ) external nonReentrant {
-    //        address from = _msgSender();
-    //        require(from != to, "Donate3: The donor address is equal to receive");
-    //
-    //        require(amountIn > 0, "Donate3: Invalid input amount.");
-    //        require(_fee < 1000 && _fee > 0, "Donate3: Fee out of range.");
-    //
-    //        uint32 fee = verifyFreeAllowList(to, _merkleProof) ? 0 : _fee;
-    //        uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
-    //        require(amountOut <= amountIn, "Donate3: Invalid output amount");
-    //
-    //        uint256 balanceBefore = IERC20(token).balanceOf(to);
-    //
-    //        TransferHelper.safeTransferFrom(token, from, address(this), amountOut);
-    //
-    //        emit donateToken(pid, from, to, amountIn, message);
-    //    }
+    function donateERC20(
+        uint256 _pid,
+        address _token,
+        string calldata _tokenSymbol,
+        uint256 _amountInDesired,
+        address _to,
+        bytes calldata _message,
+        bytes32[] calldata _merkleProof
+    ) external nonReentrant {
+        address from = _msgSender();
+        string calldata tokenSymbol = _tokenSymbol;
+        bytes calldata message = _message;
+        uint256 pid = _pid;
+        address token = _token;
+        bytes32[] calldata merkleProof = _merkleProof;
+        uint256 amountInDesired = _amountInDesired;
+
+        address to = _to;
+        require(from != to, "Donate3: The donor address is equal to receive");
+
+        address rAddress;
+        {
+            Project memory project = _findProject(to, pid);
+            require(
+                project.rAddress != address(0),
+                "Donate3: The project is not exist"
+            );
+            require(project.pause == false, "Donate3: The project is paused");
+            rAddress = project.rAddress;
+        }
+
+        uint256 amountOut = _transferToken(
+            token,
+            from,
+            amountInDesired,
+            rAddress,
+            merkleProof
+        );
+
+        // record
+        _record(from, to, pid, tokenSymbol, amountOut, message);
+    }
+
+    function _transferToken(
+        address token,
+        address from,
+        uint256 amountInDesired,
+        address rAddress,
+        bytes32[] calldata merkleProof
+    ) internal returns (uint256 amountOut) {
+        require(amountInDesired > 0, "Donate3: Invalid input amount.");
+
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+
+        // transfer to contract
+        TransferHelper.safeTransferFrom(
+            token,
+            from,
+            address(this),
+            amountInDesired
+        );
+
+        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+        uint256 amountIn = balanceAfter - balanceBefore;
+        amountOut = _getAmount(from, amountIn, merkleProof);
+        require(amountOut <= amountIn, "Donate3: Invalid output amount");
+
+        // transfer to user
+        TransferHelper.safeApprove(token, rAddress, amountOut);
+        TransferHelper.safeTransfer(token, rAddress, amountOut);
+    }
+
+    function _getAmount(
+        address from,
+        uint256 amountIn,
+        bytes32[] calldata _merkleProof
+    ) internal returns (uint256) {
+        uint32 fee = _merkleProof.length > 0 &&
+            verifyFreeAllowList(from, _merkleProof)
+            ? 0
+            : handlingFee;
+        uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
+        return amountOut;
+    }
+
+    function _record(
+        address from,
+        address to,
+        uint256 pid,
+        string memory symbol,
+        uint256 amountOut,
+        bytes calldata message
+    ) internal {
+        bytes32 symbolBytes = stringToBytes32(symbol);
+        Record[] storage records = _ownedRecords[to][pid];
+        Record memory record = Record({
+            symbol: symbolBytes,
+            amount: amountOut,
+            timestamp: uint64(block.timestamp),
+            msg: message
+        });
+        records.push(record);
+
+        emit donateRecord(pid, from, to, symbolBytes, amountOut, message);
+    }
 
     function getRecords(address owner, uint256 pid)
         external
@@ -286,4 +346,13 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function withDraw() external onlyOwner {}
+
+    function stringToBytes32(string memory source)
+        private
+        returns (bytes32 result)
+    {
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
 }

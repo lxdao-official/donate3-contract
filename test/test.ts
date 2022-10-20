@@ -3,8 +3,7 @@ import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "@ethersproject/keccak256";
-import { parseBytes32String } from "@ethersproject/strings/src.ts/bytes32";
-import { toUtf8String } from "@ethersproject/strings/src.ts/utf8";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 
 describe("Donate3 Test", function () {
   const pidInit = 10001;
@@ -12,13 +11,16 @@ describe("Donate3 Test", function () {
   const pid2 = 10003;
   const pid3 = 10003;
 
+  const TokenASymbol = "TA";
+  const TokenBSymbol = "TB";
+
   async function deployDonateFixture() {
     const [owner, feeSetter, user, userReceive, donor, ...allowListAccounts] =
       await ethers.getSigners();
 
     const factory = await ethers.getContractFactory("Donate3");
 
-    const Donate3 = await factory.deploy(feeSetter.address);
+    const Donate3 = await factory.deploy("ETH", feeSetter.address);
 
     // merkle tree
     const allowListAddresses = allowListAccounts.map(
@@ -29,8 +31,14 @@ describe("Donate3 Test", function () {
     const root = merkleTree.getRoot();
     await Donate3.setFreeMerkleRoot(root);
 
+    const tokenFactory = await ethers.getContractFactory("TestERC20");
+    const TokenA = await tokenFactory.deploy("TokenA", TokenASymbol);
+    const TokenB = await tokenFactory.deploy("TokenB", TokenBSymbol);
+
     return {
       Donate3,
+      TokenA,
+      TokenB,
       owner,
       user,
       userReceive,
@@ -73,6 +81,7 @@ describe("Donate3 Test", function () {
 
     await initProjects();
 
+    // merkle tree
     const donor = allowListAccounts[0];
     const proof = merkleTree.getHexProof(keccak256(donor.address));
 
@@ -86,11 +95,9 @@ describe("Donate3 Test", function () {
       )},userReceive:${ethers.utils.formatEther(balance2)}`,
     );
 
-    // merkle tree
-
     const amountIn = ethers.utils.parseEther("1.5");
 
-    await Donate3.connect(donor).donateETH(
+    await Donate3.connect(donor).donateToken(
       pidInit,
       amountIn,
       user.address,
@@ -122,5 +129,54 @@ describe("Donate3 Test", function () {
         )}`,
       );
     }
+  });
+
+  it("Donate ERC20", async function () {
+    const { Donate3, TokenA, user, donor } = await loadFixture(
+      deployDonateFixture,
+    );
+
+    await initProjects();
+
+    const project = await Donate3.getProject(user.address, 0);
+
+    await TokenA.mint(donor.address, ethers.utils.parseEther("3.77774"));
+
+    const donorBalance = await TokenA.balanceOf(donor.address);
+    const contractBalance = await TokenA.balanceOf(Donate3.address);
+    const userBalance = await TokenA.balanceOf(project.rAddress);
+    console.log(
+      `donor:${ethers.utils.formatEther(
+        donorBalance,
+      )},contract:${ethers.utils.formatEther(
+        contractBalance,
+      )},userReceive:${ethers.utils.formatEther(userBalance)}`,
+    );
+
+    const amountIn = ethers.utils.parseEther("2.3333");
+    console.log("amountIn:", amountIn.toString());
+
+    await TokenA.connect(donor).approve(Donate3.address, amountIn);
+
+    await Donate3.connect(donor).donateERC20(
+      pidInit,
+      TokenA.address,
+      TokenASymbol,
+      amountIn,
+      user.address,
+      ethers.utils.toUtf8Bytes("Hello donate3"),
+      [],
+    );
+
+    const donorBalance1 = await TokenA.balanceOf(donor.address);
+    const contractBalance1 = await TokenA.balanceOf(Donate3.address);
+    const userBalance1 = await TokenA.balanceOf(project.rAddress);
+    console.log(
+      `donor:${ethers.utils.formatEther(
+        donorBalance1,
+      )},contract:${ethers.utils.formatEther(
+        contractBalance1,
+      )},userReceive:${ethers.utils.formatEther(userBalance1)}`,
+    );
   });
 });
