@@ -156,17 +156,18 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address owner,
         uint256 pid,
         address payable rAddress
-    ) external view {
+    ) external {
         require(
             owner != address(0) && rAddress != address(0),
             "Donate3: owner or receive is the zero address"
         );
 
         bool bSet = false;
-        Project[] memory list = _ownedProjects[owner];
+        Project[] storage list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
-            if (list[i].pid == pid) {
-                list[i].rAddress = rAddress;
+            Project storage project = list[i];
+            if (project.pid == pid) {
+                project.rAddress = rAddress;
                 bSet = true;
                 break;
             }
