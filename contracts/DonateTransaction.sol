@@ -25,12 +25,12 @@ contract DonateTransaction is EIP712 {
         return nonces[from];
     }
 
-    function hashTransaction(Transaction memory tx)
+    function hashTransaction(Transaction memory metaTx)
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(tx.token, tx.amount, tx.nonce));
+        return keccak256(abi.encode(metaTx.token, metaTx.amount, metaTx.nonce));
     }
 
     function verify(

@@ -15,12 +15,19 @@ describe("Donate3 Test", function () {
   const TokenBSymbol = "TB";
 
   async function deployDonateFixture() {
-    const [owner, feeSetter, user, userReceive, donor, ...allowListAccounts] =
-      await ethers.getSigners();
+    const [
+      owner,
+      feeSetter,
+      user,
+      userReceive,
+      donor,
+      payee,
+      ...allowListAccounts
+    ] = await ethers.getSigners();
 
     const factory = await ethers.getContractFactory("Donate3");
 
-    const Donate3 = await factory.deploy("ETH", feeSetter.address);
+    const Donate3 = await factory.deploy("ETH");
 
     // merkle tree
     const allowListAddresses = allowListAccounts.map(
@@ -43,6 +50,7 @@ describe("Donate3 Test", function () {
       user,
       userReceive,
       donor,
+      payee,
       allowListAccounts,
       merkleTree,
     };
@@ -177,6 +185,56 @@ describe("Donate3 Test", function () {
       )},contract:${ethers.utils.formatEther(
         contractBalance1,
       )},userReceive:${ethers.utils.formatEther(userBalance1)}`,
+    );
+  });
+
+  it("6. Withdraw token", async function () {
+    const { Donate3, user, payee } = await loadFixture(deployDonateFixture);
+
+    const payeeBalance = await ethers.provider.getBalance(payee.address);
+
+    const reserve = ethers.utils.parseEther("2.3333");
+    const withdraw = ethers.utils.parseEther("1.56464646");
+
+    await user.sendTransaction({
+      to: Donate3.address,
+      value: reserve,
+    });
+
+    await Donate3.withDrawToken(payee.address, withdraw);
+
+    expect((await ethers.provider.getBalance(payee.address))._hex).to.be.equal(
+      withdraw.add(payeeBalance)._hex,
+    );
+
+    expect(
+      (await ethers.provider.getBalance(Donate3.address))._hex,
+    ).to.be.equal(reserve.sub(withdraw)._hex);
+  });
+
+  it("6. Withdraw ERC20", async function () {
+    const { Donate3, TokenA, user, payee } = await loadFixture(
+      deployDonateFixture,
+    );
+
+    const reserve = ethers.utils.parseEther("3.77774");
+    const withdraw = ethers.utils.parseEther("2.533454646");
+
+    await TokenA.mint(Donate3.address, reserve);
+
+    await Donate3.withDrawERC20(
+      TokenA.address,
+      TokenASymbol,
+      payee.address,
+      withdraw,
+    );
+
+    expect((await TokenA.balanceOf(Donate3.address))._hex).to.be.equal(
+      reserve.sub(withdraw)._hex,
+    );
+
+    expect((await TokenA.balanceOf(payee.address))._hex).to.be.equal(
+      withdraw._hex,
     );
   });
 });

@@ -18,17 +18,8 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     using SafeMath for uint256;
 
     string public tokenSymbol;
-    // fee
-    address public feeTo;
-    address public feeToSetter;
-    uint32 handlingFee = 5;
 
-    //    // PidReceive
-    //    struct PidReceives {
-    //        int8 count;
-    //        mapping(uint256 => address) value;
-    //    }
-    //    mapping(address => PidReceives) public _ownedPids;
+    uint32 handlingFee = 5;
 
     // project
     struct Project {
@@ -60,12 +51,12 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         uint256 amount,
         bytes msg
     );
+    event withDraw(string symbol, address to, uint256 amount);
 
     error CallFailed();
 
-    constructor(string memory _tokenSymbol, address _feeToSetter) {
+    constructor(string memory _tokenSymbol) {
         tokenSymbol = _tokenSymbol;
-        feeToSetter = _feeToSetter;
     }
 
     receive() external payable {
@@ -76,17 +67,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         //        emit fallbackCalled(msg.sender, msg.value, msg.data);
     }
 
-    function setFeeTo(address _feeTo) external {
-        require(msg.sender == feeToSetter, "Donate3: FORBIDDEN");
-        feeTo = _feeTo;
-    }
-
-    function setFeeToSetter(address _feeToSetter) external {
-        require(msg.sender == feeToSetter, "Donate3: FORBIDDEN");
-        feeToSetter = _feeToSetter;
-    }
-
-    function setHandleFee(uint32 _fee) external {
+    function setHandleFee(uint32 _fee) external onlyOwner {
         require(_fee < 1000, "Donate3: Fee out of range.");
         require(_fee != handlingFee, "Donate3: Fee is equal.");
         handlingFee = _fee;
@@ -99,6 +80,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     function verifyFreeAllowList(address owner, bytes32[] calldata _merkleProof)
         internal
+        view
         returns (bool)
     {
         bytes32 leaf = keccak256(abi.encodePacked(owner));
@@ -123,7 +105,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return _ownedProjects[owner][index];
     }
 
-    function _emptyProject() internal returns (Project memory) {
+    function _emptyProject() internal pure returns (Project memory) {
         Project memory p = Project({
             pid: 0,
             rAddress: payable(address(0)),
@@ -134,6 +116,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     function _findProject(address owner, uint256 pid)
         internal
+        view
         returns (Project memory)
     {
         require(owner != address(0), "Donate3: owner is the zero address");
@@ -147,7 +130,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return _emptyProject();
     }
 
-    function _exists(address owner, uint256 pid) internal returns (bool) {
+    function _exists(address owner, uint256 pid) internal view returns (bool) {
         Project memory project = _findProject(owner, pid);
         return project.rAddress != address(0);
     }
@@ -173,7 +156,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address owner,
         uint256 pid,
         address payable rAddress
-    ) external {
+    ) external view {
         require(
             owner != address(0) && rAddress != address(0),
             "Donate3: owner or receive is the zero address"
@@ -241,7 +224,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes32[] calldata _merkleProof
     ) external nonReentrant {
         address from = _msgSender();
-        string calldata tokenSymbol = _tokenSymbol;
+        string calldata symbol = _tokenSymbol;
         bytes calldata message = _message;
         uint256 pid = _pid;
         address token = _token;
@@ -271,7 +254,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         );
 
         // record
-        _record(from, to, pid, tokenSymbol, amountOut, message);
+        _record(from, to, pid, symbol, amountOut, message);
     }
 
     function _transferToken(
@@ -307,7 +290,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address from,
         uint256 amountIn,
         bytes32[] calldata _merkleProof
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint32 fee = _merkleProof.length > 0 &&
             verifyFreeAllowList(from, _merkleProof)
             ? 0
@@ -337,6 +320,16 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         emit donateRecord(pid, from, to, symbolBytes, amountOut, message);
     }
 
+    function stringToBytes32(string memory source)
+        private
+        pure
+        returns (bytes32 result)
+    {
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
     function getRecords(address owner, uint256 pid)
         external
         view
@@ -345,14 +338,39 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return _ownedRecords[owner][pid];
     }
 
-    function withDraw() external onlyOwner {}
+    function withDrawToken(address to, uint256 amount) external onlyOwner {
+        require(to != address(0), "Donate3: ZERO_ADDRESS");
+        require(
+            amount > 0 && amount <= to.balance,
+            "Donate3: Invalid input amount."
+        );
 
-    function stringToBytes32(string memory source)
-        private
-        returns (bytes32 result)
-    {
-        assembly {
-            result := mload(add(source, 32))
+        // transfer
+        (bool success, ) = to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();
         }
+        emit withDraw(tokenSymbol, to, amount);
+    }
+
+    function withDrawERC20(
+        address token,
+        string calldata symbol,
+        address to,
+        uint256 amount
+    ) external onlyOwner {
+        require(to != address(0), "Donate3: ZERO_ADDRESS");
+
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(
+            amount > 0 && amount <= balance,
+            "Donate3: Invalid input amount."
+        );
+
+        // transfer to user
+        TransferHelper.safeApprove(token, to, amount);
+        TransferHelper.safeTransfer(token, to, amount);
+
+        emit withDraw(symbol, to, amount);
     }
 }
