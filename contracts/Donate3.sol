@@ -21,13 +21,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     uint32 handlingFee = 5;
 
-    // project
-    struct Project {
-        uint256 pid;
-        address payable rAddress;
-        bool pause;
-    }
-
     // Record
     struct Record {
         bytes32 symbol;
@@ -42,6 +35,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     bytes32 private freeMerkleRoot;
 
+    event HandleFeeChanged(uint32 fee);
     event FreeMerkleRootChanged(bytes32 freeMerkleRoot);
     event donateRecord(
         uint256 pid,
@@ -71,6 +65,8 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         require(_fee < 1000, "Donate3: Fee out of range.");
         require(_fee != handlingFee, "Donate3: Fee is equal.");
         handlingFee = _fee;
+
+        emit HandleFeeChanged(handlingFee);
     }
 
     function setFreeMerkleRoot(bytes32 _merkleRoot) public onlyOwner {
@@ -96,20 +92,11 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return _ownedProjects[owner];
     }
 
-    function getProject(address owner, uint32 index)
-        external
-        view
-        returns (Project memory)
-    {
-        require(owner != address(0), "Donate3: owner is the zero address.");
-        return _ownedProjects[owner][index];
-    }
-
     function _emptyProject() internal pure returns (Project memory) {
         Project memory p = Project({
             pid: 0,
             rAddress: payable(address(0)),
-            pause: false
+            status: ProjectStatus.resume
         });
         return p;
     }
@@ -147,9 +134,16 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         Project memory p = Project({
             pid: pid,
             rAddress: rAddress,
-            pause: false
+            status: ProjectStatus.resume
         });
         list.push(p);
+    }
+
+    function burn(address owner, uint256 pid) external {
+        require(owner != address(0), "Donate3: owner is the zero address");
+        require(_exists(owner, pid), "Donate3: pid is not exist");
+
+        _updateProject(owner, pid, payable(address(0)), ProjectStatus.suspend);
     }
 
     function updateProjectReceive(
@@ -162,12 +156,26 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             "Donate3: owner or receive is the zero address"
         );
 
+        _updateProject(owner, pid, rAddress, ProjectStatus.resume);
+    }
+
+    function _updateProject(
+        address owner,
+        uint256 pid,
+        address payable rAddress,
+        ProjectStatus status
+    ) internal {
         bool bSet = false;
         Project[] storage list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
             Project storage project = list[i];
             if (project.pid == pid) {
-                project.rAddress = rAddress;
+                if (status == ProjectStatus.suspend) {
+                    project.status = ProjectStatus.suspend;
+                } else {
+                    // update rAddress
+                    project.rAddress = rAddress;
+                }
                 bSet = true;
                 break;
             }
@@ -191,7 +199,10 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
         Project memory p = _findProject(to, pid);
         require(p.rAddress != address(0), "Donate3: The project is not exist");
-        require(p.pause == false, "Donate3: The project is paused");
+        require(
+            p.status == ProjectStatus.resume,
+            "Donate3: The project is deleted"
+        );
 
         uint32 fee = _merkleProof.length > 0 &&
             verifyFreeAllowList(from, _merkleProof)
@@ -242,7 +253,10 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
                 project.rAddress != address(0),
                 "Donate3: The project is not exist"
             );
-            require(project.pause == false, "Donate3: The project is paused");
+            require(
+                project.status == ProjectStatus.resume,
+                "Donate3: The project is deleted"
+            );
             rAddress = project.rAddress;
         }
 
@@ -309,14 +323,14 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes calldata message
     ) internal {
         bytes32 symbolBytes = stringToBytes32(symbol);
-        Record[] storage records = _ownedRecords[to][pid];
-        Record memory record = Record({
-            symbol: symbolBytes,
-            amount: amountOut,
-            timestamp: uint64(block.timestamp),
-            msg: message
-        });
-        records.push(record);
+        //        Record[] storage records = _ownedRecords[to][pid];
+        //        Record memory record = Record({
+        //            symbol: symbolBytes,
+        //            amount: amountOut,
+        //            timestamp: uint64(block.timestamp),
+        //            msg: message
+        //        });
+        //        records.push(record);
 
         emit donateRecord(pid, from, to, symbolBytes, amountOut, message);
     }
