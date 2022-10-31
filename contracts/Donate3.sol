@@ -54,6 +54,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     error CallFailed();
 
     constructor(string memory _tokenSymbol) {
+        require(bytes(_tokenSymbol).length > 0, "Token symbol is empty.");
         tokenSymbol = _tokenSymbol;
     }
 
