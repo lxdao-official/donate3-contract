@@ -6,8 +6,9 @@
   "scripts": {
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
-    "deploy:rinkeby": "npx hardhat run scripts/deploy.ts --network rinkeby",
-    "verify:rinkeby": "npx hardhat verify YOUR_CONTRACT SIGNER --network rinkeby"
+    "export:abi": "npx hardhat export-abi",
+    "deploy:goerli": "npx hardhat run scripts/deploy.ts --network goerli",
+    "verify:goerli": "npx hardhat verify YOUR_CONTRACT --network goerli"
   },
   "repository": {
     "type": "git",
