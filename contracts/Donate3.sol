@@ -35,8 +35,12 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     bytes32 private freeMerkleRoot;
 
-    event HandleFeeChanged(uint32 fee);
-    event FreeMerkleRootChanged(bytes32 freeMerkleRoot);
+    event HandleFeeChanged(address from, uint32 feeBefore, uint32 feeAfter);
+    event FreeMerkleRootChanged(
+        address from,
+        bytes32 freeMerkleRootBefore,
+        bytes32 freeMerkleRootAfter
+    );
     event donateRecord(
         uint256 pid,
         address from,
@@ -45,7 +49,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         uint256 amount,
         bytes msg
     );
-    event withDraw(string symbol, address to, uint256 amount);
+    event withDraw(string symbol, address from, address to, uint256 amount);
 
     error CallFailed();
 
@@ -62,23 +66,26 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function setHandleFee(uint32 _fee) external onlyOwner {
-        require(_fee < 1000, "Donate3: Fee out of range.");
-        require(_fee != handlingFee, "Donate3: Fee is equal.");
+        require(_fee <= 200, "Fee out of range.");
+        require(_fee != handlingFee, "Fee is equal.");
+
+        emit HandleFeeChanged(_msgSender(), handlingFee, _fee);
+
         handlingFee = _fee;
-
-        emit HandleFeeChanged(handlingFee);
     }
 
-    function setFreeMerkleRoot(bytes32 _merkleRoot) public onlyOwner {
+    function setFreeMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        emit FreeMerkleRootChanged(_msgSender(), freeMerkleRoot, _merkleRoot);
+
         freeMerkleRoot = _merkleRoot;
-        emit FreeMerkleRootChanged(freeMerkleRoot);
     }
 
-    function verifyFreeAllowList(address owner, bytes32[] calldata _merkleProof)
-        internal
-        view
-        returns (bool)
-    {
+    function _verifyFreeAllowList(
+        address owner,
+        bytes32[] calldata _merkleProof
+    ) internal view returns (bool) {
+        require(owner != address(0), "Owner is the zero address.");
+
         bytes32 leaf = keccak256(abi.encodePacked(owner));
         return MerkleProof.verify(_merkleProof, freeMerkleRoot, leaf);
     }
@@ -88,7 +95,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         view
         returns (Project[] memory)
     {
-        require(owner != address(0), "Donate3: owner is the zero address.");
+        require(owner != address(0), "Owner is the zero address.");
         return _ownedProjects[owner];
     }
 
@@ -106,7 +113,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         view
         returns (Project memory)
     {
-        require(owner != address(0), "Donate3: owner is the zero address");
+        require(owner != address(0), "Owner is the zero address");
 
         Project[] memory list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
@@ -127,8 +134,8 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         uint256 pid,
         address payable rAddress
     ) external {
-        require(owner != address(0), "Donate3: owner is the zero address");
-        require(!_exists(owner, pid), "Donate3: pid already minted");
+        require(owner != address(0), "Owner is the zero address");
+        require(!_exists(owner, pid), "Pid already minted");
 
         Project[] storage list = _ownedProjects[owner];
         Project memory p = Project({
@@ -140,8 +147,8 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function burn(address owner, uint256 pid) external {
-        require(owner != address(0), "Donate3: owner is the zero address");
-        require(_exists(owner, pid), "Donate3: pid is not exist");
+        require(owner != address(0), "Owner is the zero address");
+        require(_exists(owner, pid), "Pid is not exist");
 
         _updateProject(owner, pid, payable(address(0)), ProjectStatus.suspend);
     }
@@ -153,7 +160,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     ) external {
         require(
             owner != address(0) && rAddress != address(0),
-            "Donate3: owner or receive is the zero address"
+            "Owner or receive is the zero address"
         );
 
         _updateProject(owner, pid, rAddress, ProjectStatus.resume);
@@ -181,7 +188,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             }
         }
         if (!bSet) {
-            revert("Donate3: pid is not exist");
+            revert("Pid is not exist");
         }
     }
 
@@ -193,24 +200,21 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes32[] calldata _merkleProof
     ) external payable nonReentrant {
         address from = _msgSender();
-        require(from != to, "Donate3: The donor address is equal to receive");
+        require(from != to, "The donor address is equal to receive");
 
-        require(amountIn > 0, "Donate3: Invalid input amount.");
+        require(amountIn > 0, "Invalid input amount.");
 
         Project memory p = _findProject(to, pid);
-        require(p.rAddress != address(0), "Donate3: The project is not exist");
-        require(
-            p.status == ProjectStatus.resume,
-            "Donate3: The project is deleted"
-        );
+        require(p.rAddress != address(0), "The project is not exist");
+        require(p.status == ProjectStatus.resume, "The project is deleted");
 
         uint32 fee = _merkleProof.length > 0 &&
-            verifyFreeAllowList(from, _merkleProof)
+            _verifyFreeAllowList(from, _merkleProof)
             ? 0
             : handlingFee;
 
         uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
-        require(amountOut <= amountIn, "Donate3: Invalid output amount");
+        require(amountOut <= amountIn, "Invalid output amount");
 
         // transfer
         (bool success, ) = p.rAddress.call{value: amountOut}("");
@@ -244,18 +248,15 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         uint256 amountInDesired = _amountInDesired;
 
         address to = _to;
-        require(from != to, "Donate3: The donor address is equal to receive");
+        require(from != to, "The donor address is equal to receive");
 
         address rAddress;
         {
             Project memory project = _findProject(to, pid);
-            require(
-                project.rAddress != address(0),
-                "Donate3: The project is not exist"
-            );
+            require(project.rAddress != address(0), "The project is not exist");
             require(
                 project.status == ProjectStatus.resume,
-                "Donate3: The project is deleted"
+                "The project is deleted"
             );
             rAddress = project.rAddress;
         }
@@ -279,8 +280,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address rAddress,
         bytes32[] calldata merkleProof
     ) internal returns (uint256 amountOut) {
-        require(amountInDesired > 0, "Donate3: Invalid input amount.");
-
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
 
         // transfer to contract
@@ -294,7 +293,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
         uint256 amountIn = balanceAfter - balanceBefore;
         amountOut = _getAmount(from, amountIn, merkleProof);
-        require(amountOut <= amountIn, "Donate3: Invalid output amount");
+        require(amountOut <= amountIn, "Invalid output amount");
 
         // transfer to user
         TransferHelper.safeApprove(token, rAddress, amountOut);
@@ -307,7 +306,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes32[] calldata _merkleProof
     ) internal view returns (uint256) {
         uint32 fee = _merkleProof.length > 0 &&
-            verifyFreeAllowList(from, _merkleProof)
+            _verifyFreeAllowList(from, _merkleProof)
             ? 0
             : handlingFee;
         uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
@@ -323,15 +322,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes calldata message
     ) internal {
         bytes32 symbolBytes = stringToBytes32(symbol);
-        //        Record[] storage records = _ownedRecords[to][pid];
-        //        Record memory record = Record({
-        //            symbol: symbolBytes,
-        //            amount: amountOut,
-        //            timestamp: uint64(block.timestamp),
-        //            msg: message
-        //        });
-        //        records.push(record);
-
         emit donateRecord(pid, from, to, symbolBytes, amountOut, message);
     }
 
@@ -345,27 +335,44 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         }
     }
 
-    function getRecords(address owner, uint256 pid)
-        external
-        view
-        returns (Record[] memory)
-    {
-        return _ownedRecords[owner][pid];
-    }
-
     function withDrawToken(address to, uint256 amount) external onlyOwner {
-        require(to != address(0), "Donate3: ZERO_ADDRESS");
-        require(
-            amount > 0 && amount <= to.balance,
-            "Donate3: Invalid input amount."
-        );
+        require(to != address(0), "ZERO_ADDRESS");
+        require(amount > 0 && amount <= to.balance, "Invalid input amount.");
 
         // transfer
         (bool success, ) = to.call{value: amount}("");
         if (!success) {
             revert CallFailed();
         }
-        emit withDraw(tokenSymbol, to, amount);
+        emit withDraw(tokenSymbol, _msgSender(), to, amount);
+    }
+
+    function withDrawERC20List(
+        address[] calldata tokens,
+        string[] calldata symbols,
+        address to,
+        uint256[] calldata amounts
+    ) external onlyOwner {
+        require(to != address(0), "ZERO_ADDRESS");
+        require(
+            tokens.length == symbols.length && symbols.length == amounts.length,
+            "Invalid input length"
+        );
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            string memory symbol = symbols[i];
+            uint256 amount = amounts[i];
+
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            require(amount > 0 && amount <= balance, "Invalid input amount.");
+
+            // transfer to user
+            TransferHelper.safeApprove(token, to, amount);
+            TransferHelper.safeTransfer(token, to, amount);
+
+            emit withDraw(symbol, _msgSender(), to, amount);
+        }
     }
 
     function withDrawERC20(
@@ -374,18 +381,15 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address to,
         uint256 amount
     ) external onlyOwner {
-        require(to != address(0), "Donate3: ZERO_ADDRESS");
+        require(to != address(0), "ZERO_ADDRESS");
 
         uint256 balance = IERC20(token).balanceOf(address(this));
-        require(
-            amount > 0 && amount <= balance,
-            "Donate3: Invalid input amount."
-        );
+        require(amount > 0 && amount <= balance, "Invalid input amount.");
 
         // transfer to user
         TransferHelper.safeApprove(token, to, amount);
         TransferHelper.safeTransfer(token, to, amount);
 
-        emit withDraw(symbol, to, amount);
+        emit withDraw(symbol, _msgSender(), to, amount);
     }
 }

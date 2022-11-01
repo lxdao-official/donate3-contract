@@ -59,4 +59,11 @@ interface IDonate3 {
         address to,
         uint256 amount
     ) external;
+
+    function withDrawERC20List(
+        address[] calldata tokens,
+        string[] calldata symbols,
+        address to,
+        uint256[] calldata amounts
+    ) external;
 }

@@ -220,9 +220,7 @@ describe("Donate3 Test", function () {
   });
 
   it("8. Withdraw ERC20", async function () {
-    const { Donate3, TokenA, user, payee } = await loadFixture(
-      deployDonateFixture,
-    );
+    const { Donate3, TokenA, payee } = await loadFixture(deployDonateFixture);
 
     const reserve = ethers.utils.parseEther("3.77774");
     const withdraw = ethers.utils.parseEther("2.533454646");
@@ -242,6 +240,35 @@ describe("Donate3 Test", function () {
 
     expect((await TokenA.balanceOf(payee.address))._hex).to.be.equal(
       withdraw._hex,
+    );
+  });
+
+  it("8. Withdraw ERC20 List", async function () {
+    const { Donate3, TokenA, TokenB, payee } = await loadFixture(
+      deployDonateFixture,
+    );
+
+    const reserve = ethers.utils.parseEther("3.77774");
+    const withdrawTokenA = ethers.utils.parseEther("2.533454646");
+    const withdrawTokenB = ethers.utils.parseEther("1.3333");
+
+    await TokenA.mint(Donate3.address, reserve);
+
+    await TokenB.mint(Donate3.address, reserve);
+
+    await Donate3.withDrawERC20List(
+      [TokenA.address, TokenB.address],
+      [TokenASymbol, TokenBSymbol],
+      payee.address,
+      [withdrawTokenA, withdrawTokenB],
+    );
+
+    expect((await TokenA.balanceOf(Donate3.address))._hex).to.be.equal(
+      reserve.sub(withdrawTokenA)._hex,
+    );
+
+    expect((await TokenB.balanceOf(Donate3.address))._hex).to.be.equal(
+      reserve.sub(withdrawTokenB)._hex,
     );
   });
 });
