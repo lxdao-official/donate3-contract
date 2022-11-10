@@ -5,10 +5,14 @@ import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "@ethersproject/keccak256";
 
 describe("Donate3 Test", function () {
-  const pidInit = 10001;
-  const pid1 = 10002;
-  const pid2 = 10003;
-  const pid3 = 10003;
+  const pidInit =
+    "kjzl6cwe1jw14amta5uvfbw2rg8ndifau3bmmqmlsc9d3w8vmj8zwtad3a4vrku";
+  const pid1 =
+    "kjzl6cwe1jw14amta5uvfbw2rg8ndifau3bmmqmlsc9d3w8vmj8zwtad3a4vrkk";
+  const pid2 =
+    "kjzl6cwe1jw14amta5uvfbw2rg8ndifau3bmmqmlsc9d3w8vmj8zwtad3a4vrkv";
+  const pid3 =
+    "kjzl6cwe1jw14amta5uvfbw2rg8ndifau3bmmqmlsc9d3w8vmj8zwtad3a4vrkm";
 
   const TokenASymbol = "TA";
   const TokenBSymbol = "TB";
@@ -62,7 +66,7 @@ describe("Donate3 Test", function () {
     );
     await Donate3.connect(user).mint(
       user.address,
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       userReceive.address,
     );
   }
@@ -76,10 +80,14 @@ describe("Donate3 Test", function () {
     const { Donate3, user, userReceive } = await loadFixture(
       deployDonateFixture,
     );
-    await Donate3.connect(user).mint(user.address, pid1, userReceive.address);
+    await Donate3.connect(user).mint(
+      user.address,
+      ethers.utils.toUtf8Bytes(pid1),
+      userReceive.address,
+    );
     const { pid } = (await Donate3.getProjectList(user.address))[0];
 
-    expect(pid.toString()).to.equal(`${pid1}`);
+    expect(pid).to.equal(ethers.utils.hexlify(pid));
   });
 
   it("3. Update project", async function () {
@@ -89,13 +97,13 @@ describe("Donate3 Test", function () {
 
     await Donate3.connect(user).mint(
       user.address,
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       userReceive.address,
     );
 
     await Donate3.connect(user).updateProjectReceive(
       user.address,
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       newUserReceive.address,
     );
 
@@ -111,11 +119,14 @@ describe("Donate3 Test", function () {
 
     await Donate3.connect(user).mint(
       user.address,
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       userReceive.address,
     );
 
-    await Donate3.connect(user).burn(user.address, pidInit);
+    await Donate3.connect(user).burn(
+      user.address,
+      ethers.utils.toUtf8Bytes(pidInit),
+    );
 
     const { status } = (await Donate3.getProjectList(user.address))[0];
 
@@ -128,7 +139,7 @@ describe("Donate3 Test", function () {
 
     await Donate3.connect(user).mint(
       user.address,
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       userReceive.address,
     );
 
@@ -145,7 +156,7 @@ describe("Donate3 Test", function () {
     const amountIn = ethers.utils.parseEther("1.51212");
 
     await Donate3.connect(donor).donateToken(
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       amountIn,
       user.address,
       ethers.utils.toUtf8Bytes("Hello donate3"),
@@ -181,7 +192,7 @@ describe("Donate3 Test", function () {
     await TokenA.connect(donor).approve(Donate3.address, amountIn);
 
     await Donate3.connect(donor).donateERC20(
-      pidInit,
+      ethers.utils.toUtf8Bytes(pidInit),
       TokenA.address,
       TokenASymbol,
       amountIn,

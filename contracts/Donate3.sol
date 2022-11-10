@@ -21,17 +21,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     uint32 handlingFee = 5;
 
-    // Record
-    struct Record {
-        bytes32 symbol;
-        uint256 amount;
-        uint64 timestamp;
-        bytes msg;
-    }
-
     mapping(address => Project[]) private _ownedProjects;
-
-    mapping(address => mapping(uint256 => Record[])) private _ownedRecords;
 
     bytes32 private freeMerkleRoot;
 
@@ -42,7 +32,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes32 freeMerkleRootAfter
     );
     event donateRecord(
-        uint256 pid,
+        bytes pid,
         address from,
         address to,
         bytes32 symbol,
@@ -102,14 +92,14 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     function _emptyProject() internal pure returns (Project memory) {
         Project memory p = Project({
-            pid: 0,
+            pid: bytes(""),
             rAddress: payable(address(0)),
             status: ProjectStatus.resume
         });
         return p;
     }
 
-    function _findProject(address owner, uint256 pid)
+    function _findProject(address owner, bytes calldata pid)
         internal
         view
         returns (Project memory)
@@ -118,21 +108,25 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
         Project[] memory list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
-            if (list[i].pid == pid) {
+            if (keccak256(list[i].pid) == keccak256(pid)) {
                 return list[i];
             }
         }
         return _emptyProject();
     }
 
-    function _exists(address owner, uint256 pid) internal view returns (bool) {
+    function _exists(address owner, bytes calldata pid)
+        internal
+        view
+        returns (bool)
+    {
         Project memory project = _findProject(owner, pid);
         return project.rAddress != address(0);
     }
 
     function mint(
         address owner,
-        uint256 pid,
+        bytes calldata pid,
         address payable rAddress
     ) external {
         require(owner != address(0), "Owner is the zero address");
@@ -147,7 +141,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         list.push(p);
     }
 
-    function burn(address owner, uint256 pid) external {
+    function burn(address owner, bytes calldata pid) external {
         require(owner != address(0), "Owner is the zero address");
         require(_exists(owner, pid), "Pid is not exist");
 
@@ -156,7 +150,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     function updateProjectReceive(
         address owner,
-        uint256 pid,
+        bytes calldata pid,
         address payable rAddress
     ) external {
         require(
@@ -169,7 +163,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     function _updateProject(
         address owner,
-        uint256 pid,
+        bytes calldata pid,
         address payable rAddress,
         ProjectStatus status
     ) internal {
@@ -177,7 +171,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         Project[] storage list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
             Project storage project = list[i];
-            if (project.pid == pid) {
+            if (keccak256(project.pid) == keccak256(pid)) {
                 if (status == ProjectStatus.suspend) {
                     project.status = ProjectStatus.suspend;
                 } else {
@@ -194,7 +188,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function donateToken(
-        uint256 pid,
+        bytes calldata pid,
         uint256 amountIn,
         address to,
         bytes calldata message,
@@ -232,7 +226,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function donateERC20(
-        uint256 _pid,
+        bytes calldata _pid,
         address _token,
         string calldata _tokenSymbol,
         uint256 _amountInDesired,
@@ -240,16 +234,15 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) external nonReentrant {
-        address from = _msgSender();
+        bytes calldata pid = _pid;
         string calldata symbol = _tokenSymbol;
         bytes calldata message = _message;
-        uint256 pid = _pid;
         address token = _token;
         bytes32[] calldata merkleProof = _merkleProof;
         uint256 amountInDesired = _amountInDesired;
 
         address to = _to;
-        require(from != to, "The donor address is equal to receive");
+        require(_msgSender() != to, "The donor address is equal to receive");
 
         address rAddress;
         {
@@ -262,16 +255,19 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             rAddress = project.rAddress;
         }
 
-        uint256 amountOut = _transferToken(
-            token,
-            from,
-            amountInDesired,
-            rAddress,
-            merkleProof
-        );
+        uint256 amountOut;
+        {
+            amountOut = _transferToken(
+                token,
+                _msgSender(),
+                amountInDesired,
+                rAddress,
+                merkleProof
+            );
+        }
 
         // record
-        _record(from, to, pid, symbol, amountOut, message);
+        _record(_msgSender(), to, pid, symbol, amountOut, message);
     }
 
     function _transferToken(
@@ -317,7 +313,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     function _record(
         address from,
         address to,
-        uint256 pid,
+        bytes calldata pid,
         string memory symbol,
         uint256 amountOut,
         bytes calldata message

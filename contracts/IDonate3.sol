@@ -9,7 +9,7 @@ interface IDonate3 {
 
     // project
     struct Project {
-        uint256 pid;
+        bytes pid;
         address payable rAddress;
         ProjectStatus status;
     }
@@ -21,20 +21,20 @@ interface IDonate3 {
 
     function mint(
         address owner,
-        uint256 pid,
+        bytes calldata pid,
         address payable rAddress
     ) external;
 
-    function burn(address owner, uint256 pid) external;
+    function burn(address owner, bytes calldata pid) external;
 
     function updateProjectReceive(
         address owner,
-        uint256 pid,
+        bytes calldata pid,
         address payable rAddress
     ) external;
 
     function donateToken(
-        uint256 pid,
+        bytes calldata pid,
         uint256 amountIn,
         address to,
         bytes calldata message,
@@ -42,7 +42,7 @@ interface IDonate3 {
     ) external payable;
 
     function donateERC20(
-        uint256 _pid,
+        bytes calldata _pid,
         address _token,
         string calldata _tokenSymbol,
         uint256 _amountInDesired,
