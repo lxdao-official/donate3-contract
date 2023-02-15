@@ -1,60 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
 import "./DonateTransaction.sol";
 import "./IDonate3.sol";
-
+import "./Donate3Storage.sol";
 import "hardhat/console.sol";
 
-contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
+contract Donate3 is 
+    Donate3Storage,
+    IDonate3,
+    OwnableUpgradeable, 
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    PausableUpgradeable 
+{
     using ECDSA for bytes32;
     using SafeMath for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    string public tokenSymbol;
-
-    uint32 handlingFee = 5;
-
-    // Record
-    struct Record {
-        bytes32 symbol;
-        uint256 amount;
-        uint64 timestamp;
-        bytes msg;
-    }
-
-    mapping(address => Project[]) private _ownedProjects;
-
-    mapping(address => mapping(uint256 => Record[])) private _ownedRecords;
-
-    bytes32 private freeMerkleRoot;
-
-    event HandleFeeChanged(address from, uint32 feeBefore, uint32 feeAfter);
-    event FreeMerkleRootChanged(
-        address from,
-        bytes32 freeMerkleRootBefore,
-        bytes32 freeMerkleRootAfter
-    );
-    event donateRecord(
-        uint256 pid,
-        address from,
-        address to,
-        bytes32 symbol,
-        uint256 amount,
-        bytes msg
-    );
-    event withDraw(string symbol, address from, address to, uint256 amount);
-
-    error CallFailed();
-
-    constructor(string memory _tokenSymbol) {
+    function initialize(string memory _tokenSymbol) public initializer {
         tokenSymbol = _tokenSymbol;
+        handlingFee = 5;
+
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __Ownable_init();
     }
 
     receive() external payable {
@@ -280,7 +259,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address rAddress,
         bytes32[] calldata merkleProof
     ) internal returns (uint256 amountOut) {
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+        uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(address(this));
 
         // transfer to contract
         TransferHelper.safeTransferFrom(
@@ -290,7 +269,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             amountInDesired
         );
 
-        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+        uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(address(this));
         uint256 amountIn = balanceAfter - balanceBefore;
         amountOut = _getAmount(from, amountIn, merkleProof);
         require(amountOut <= amountIn, "Invalid output amount");
@@ -364,7 +343,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             string memory symbol = symbols[i];
             uint256 amount = amounts[i];
 
-            uint256 balance = IERC20(token).balanceOf(address(this));
+            uint256 balance = IERC20Upgradeable(token).balanceOf(address(this));
             require(amount > 0 && amount <= balance, "Invalid input amount.");
 
             // transfer to user
@@ -383,7 +362,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     ) external onlyOwner {
         require(to != address(0), "ZERO_ADDRESS");
 
-        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 balance = IERC20Upgradeable(token).balanceOf(address(this));
         require(amount > 0 && amount <= balance, "Invalid input amount.");
 
         // transfer to user
@@ -392,4 +371,16 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
         emit withDraw(symbol, _msgSender(), to, amount);
     }
+
+    /**public */
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
 }

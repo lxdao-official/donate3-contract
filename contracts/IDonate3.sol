@@ -1,18 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-interface IDonate3 {
-    enum ProjectStatus {
-        resume,
-        suspend
-    }
+import "./Donate3Storage.sol";
 
-    // project
-    struct Project {
-        uint256 pid;
-        address payable rAddress;
-        ProjectStatus status;
-    }
+interface IDonate3 {
 
     function getProjectList(address owner)
         external
@@ -66,4 +57,26 @@ interface IDonate3 {
         address to,
         uint256[] calldata amounts
     ) external;
+
+    event HandleFeeChanged(address from, uint32 feeBefore, uint32 feeAfter);
+    
+    event FreeMerkleRootChanged(
+        address from,
+        bytes32 freeMerkleRootBefore,
+        bytes32 freeMerkleRootAfter
+    );
+    
+    event donateRecord(
+        uint256 pid,
+        address from,
+        address to,
+        bytes32 symbol,
+        uint256 amount,
+        bytes msg
+    );
+    
+    event withDraw(string symbol, address from, address to, uint256 amount);
+
+    error CallFailed();
+
 }

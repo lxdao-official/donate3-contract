@@ -22,7 +22,8 @@
   "homepage": "https://github.com/lxdao-official/donate3-contract#readme",
   "dependencies": {
     "@openzeppelin/contracts": "^4.7.3",
-    "@uniswap/lib": "4.0.1-alpha"
+    "@uniswap/lib": "4.0.1-alpha",
+    "@openzeppelin/contracts-upgradeable": "^4.6.0"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
@@ -35,6 +36,8 @@
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@typechain/ethers-v5": "^10.1.0",
     "@typechain/hardhat": "^6.1.2",
+    "@openzeppelin/hardhat-upgrades": "^1.17.0",
+    "openzeppelin-test-helpers": "^0.5.1",
     "@types/chai": "^4.2.0",
     "@types/mocha": "^9.1.0",
     "@types/node": ">=12.0.0",

@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades,network,artifacts } from 'hardhat';
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "@ethersproject/keccak256";
@@ -24,10 +24,13 @@ describe("Donate3 Test", function () {
       ...allowListAccounts
     ] = await ethers.getSigners();
 
-    const factory = await ethers.getContractFactory("Donate3");
+    const upgradeFactory = await ethers.getContractFactory("Donate3");
 
-    const Donate3 = await factory.deploy("ETH");
-
+    const Donate3 = await upgrades.deployProxy(
+      upgradeFactory,
+      ["ETH"],
+      {kind:'uups'}
+    );
     // merkle tree
     const allowListAddresses = allowListAccounts.map(
       (account) => account.address,
