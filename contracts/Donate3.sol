@@ -7,11 +7,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
-import "./DonateTransaction.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./IDonate3.sol";
 
-import "hardhat/console.sol";
 
 contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     using ECDSA for bytes32;
