@@ -10,6 +10,11 @@ import "hardhat-abi-exporter";
 
 dotenv.config();
 
+//add proxy to ethersacn api
+// const { setGlobalDispatcher, ProxyAgent } = require('undici');
+// const proxyAgent = new ProxyAgent('http://172.23.240.1:7890');
+// setGlobalDispatcher(proxyAgent);
+
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.17",
@@ -21,19 +26,39 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    localhost: {
+      url: "http://localhost:8545",
+    },
+    polygonMumbai:{
+      url: process.env.MUMBAI_API_KEY_URL,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     goerli: {
-      url: process.env.API_URL,
+      url: process.env.GOERLI_API_KEY_URL,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     mainnet: {
-      url: process.env.API_URL,
+      url: process.env.ETH_MAINNER_API_KEY_URL,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      polygonMumbai: process.env.POLYGONSCAN_KEY,
+      goerli: process.env.ETHERSCAN_API_KEY,
+    },
+    customChains: [
+      {
+        network: "polygonMumbai",
+        chainId: 80001,
+        urls: {
+          apiURL: "https://api-mumbai.polygonscan.com//api",  // https => http
+          browserURL: "https://api-mumbai.polygonscan.com"
+        }
+      }
+    ]
   },
 };
 
