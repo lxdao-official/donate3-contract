@@ -14,21 +14,23 @@ interface IDonate3 {
         ProjectStatus status;
     }
 
-    function getProjectList(address owner)
+    function getProjectList(address pOwner)
         external
         view
         returns (Project[] memory);
 
+    function setHandleFee(uint32 _fee) external;
+
     function mint(
-        address owner,
+        address pOwner,
         uint256 pid,
         address payable rAddress
     ) external;
 
-    function burn(address owner, uint256 pid) external;
+    function burn(address pOwner, uint256 pid) external;
 
     function updateProjectReceive(
-        address owner,
+        address pOwner,
         uint256 pid,
         address payable rAddress
     ) external;

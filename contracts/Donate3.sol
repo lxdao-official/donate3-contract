@@ -51,6 +51,12 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     error CallFailed();
 
+    modifier projectOwnerOrowner(address pOwner) {
+        require(msg.sender == pOwner || msg.sender == owner(),
+            "caller not contract owner or project owner!");
+        _;
+    }
+
     constructor(string memory _tokenSymbol) {
         tokenSymbol = _tokenSymbol;
     }
@@ -79,22 +85,22 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function _verifyFreeAllowList(
-        address owner,
+        address pOwner,
         bytes32[] calldata _merkleProof
     ) internal view returns (bool) {
-        require(owner != address(0), "Owner is the zero address.");
+        require(pOwner != address(0), "Owner is the zero address.");
 
-        bytes32 leaf = keccak256(abi.encodePacked(owner));
+        bytes32 leaf = keccak256(abi.encodePacked(pOwner));
         return MerkleProof.verify(_merkleProof, freeMerkleRoot, leaf);
     }
 
-    function getProjectList(address owner)
+    function getProjectList(address pOwner)
         external
         view
         returns (Project[] memory)
     {
-        require(owner != address(0), "Owner is the zero address.");
-        return _ownedProjects[owner];
+        require(pOwner != address(0), "Owner is the zero address.");
+        return _ownedProjects[pOwner];
     }
 
     function _emptyProject() internal pure returns (Project memory) {
@@ -106,14 +112,14 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return p;
     }
 
-    function _findProject(address owner, uint256 pid)
+    function _findProject(address pOwner, uint256 pid)
         internal
         view
         returns (Project memory)
     {
-        require(owner != address(0), "Owner is the zero address");
+        require(pOwner != address(0), "Owner is the zero address");
 
-        Project[] memory list = _ownedProjects[owner];
+        Project[] memory list = _ownedProjects[pOwner];
         for (uint256 i = 0; i < list.length; i++) {
             if (list[i].pid == pid) {
                 return list[i];
@@ -122,20 +128,20 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return _emptyProject();
     }
 
-    function _exists(address owner, uint256 pid) internal view returns (bool) {
-        Project memory project = _findProject(owner, pid);
+    function _exists(address pOwner, uint256 pid) internal view returns (bool) {
+        Project memory project = _findProject(pOwner, pid);
         return project.rAddress != address(0);
     }
 
     function mint(
-        address owner,
+        address pOwner,
         uint256 pid,
         address payable rAddress
     ) external {
-        require(owner != address(0), "Owner is the zero address");
-        require(!_exists(owner, pid), "Pid already minted");
+        require(pOwner != address(0), "Owner is the zero address");
+        require(!_exists(pOwner, pid), "Pid already minted");
 
-        Project[] storage list = _ownedProjects[owner];
+        Project[] storage list = _ownedProjects[pOwner];
         Project memory p = Project({
             pid: pid,
             rAddress: rAddress,
@@ -144,34 +150,34 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         list.push(p);
     }
 
-    function burn(address owner, uint256 pid) external {
-        require(owner != address(0), "Owner is the zero address");
-        require(_exists(owner, pid), "Pid is not exist");
+    function burn(address pOwner, uint256 pid) external projectOwnerOrowner(pOwner){
+        require(pOwner != address(0), "Owner is the zero address");
+        require(_exists(pOwner, pid), "Pid is not exist");
 
-        _updateProject(owner, pid, payable(address(0)), ProjectStatus.suspend);
+        _updateProject(pOwner, pid, payable(address(0)), ProjectStatus.suspend);
     }
 
     function updateProjectReceive(
-        address owner,
+        address pOwner,
         uint256 pid,
         address payable rAddress
-    ) external {
+    ) external projectOwnerOrowner(pOwner){
         require(
-            owner != address(0) && rAddress != address(0),
+            pOwner != address(0) && rAddress != address(0),
             "Owner or receive is the zero address"
         );
 
-        _updateProject(owner, pid, rAddress, ProjectStatus.resume);
+        _updateProject(pOwner, pid, rAddress, ProjectStatus.resume);
     }
 
     function _updateProject(
-        address owner,
+        address pOwner,
         uint256 pid,
         address payable rAddress,
         ProjectStatus status
     ) internal {
         bool bSet = false;
-        Project[] storage list = _ownedProjects[owner];
+        Project[] storage list = _ownedProjects[pOwner];
         for (uint256 i = 0; i < list.length; i++) {
             Project storage project = list[i];
             if (project.pid == pid) {
