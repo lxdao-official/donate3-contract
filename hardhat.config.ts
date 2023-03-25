@@ -49,16 +49,16 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.POLYGONSCAN_KEY,
       goerli: process.env.ETHERSCAN_API_KEY,
     },
-    customChains: [
-      {
-        network: "polygonMumbai",
-        chainId: 80001,
-        urls: {
-          apiURL: "https://api-mumbai.polygonscan.com//api",  // https => http
-          browserURL: "https://api-mumbai.polygonscan.com"
-        }
-      }
-    ]
+//     customChains: [
+//       {
+//         network: "polygonMumbai",
+//         chainId: 80001,
+//         urls: {
+//           apiURL: "https://api-mumbai.polygonscan.com//api",  // https => http
+//           browserURL: "https://api-mumbai.polygonscan.com"
+//         }
+//       }
+//     ]
   },
 };
 
