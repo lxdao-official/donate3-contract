@@ -66,6 +66,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function setHandleFee(uint32 _fee) external onlyOwner {
+        // todo: 将 200 这个上限写成 public const 成员？这样外部也可以查询到这个数据
         require(_fee <= 200, "Fee out of range.");
         require(_fee != handlingFee, "Fee is equal.");
 
@@ -129,11 +130,14 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return project.rAddress != address(0);
     }
 
+    // todo: 这个任何人都可以调用 mint 是专门的设计么？
     function mint(
         address owner,
         uint256 pid,
         address payable rAddress
     ) external {
+        // todo: require(msg.sender == owner, "Only owner can mint.")
+        // 其实这么看，owner 参数没有太大意义, 和 burn 中都可以删掉
         require(owner != address(0), "Owner is the zero address");
         require(!_exists(owner, pid), "Pid already minted");
 
@@ -147,6 +151,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     }
 
     function burn(address owner, uint256 pid) external {
+        // todo: 同 mint
         require(owner != address(0), "Owner is the zero address");
         require(_exists(owner, pid), "Pid is not exist");
 
@@ -172,11 +177,13 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         address payable rAddress,
         ProjectStatus status
     ) internal {
+        // todo: 为什么不用 _findProject 然后更新?
         bool bSet = false;
         Project[] storage list = _ownedProjects[owner];
         for (uint256 i = 0; i < list.length; i++) {
             Project storage project = list[i];
             if (project.pid == pid) {
+                // todo: 这个更新逻辑有点奇怪，只能设置为 suspend？还是实现的通用点吧，找到 project 然后设置各个字段
                 if (status == ProjectStatus.suspend) {
                     project.status = ProjectStatus.suspend;
                 } else {
@@ -195,10 +202,12 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     function donateToken(
         uint256 pid,
         uint256 amountIn,
+        // todo: to->projectOwner 可能更好点
         address to,
         bytes calldata message,
         bytes32[] calldata _merkleProof
     ) external payable nonReentrant {
+        // todo: 建议参数使用 amountOut, 不要设置 amountIn, 根据 msg.value 计算出来
         address from = _msgSender();
         require(from != to, "The donor address is equal to receive");
 
@@ -214,6 +223,8 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             : handlingFee;
 
         uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
+        // todo: 这个 require 好像没有意义，不可能失败, 应该是检查 msg.value >= amountOut + fee
+        // 考虑这个输入: value 0.98 eth, amountIn 1, （手续费假设 2%），最后其实他没有交手续费，因为 msg.value < amountOut + fee
         require(amountOut <= amountIn, "Invalid output amount");
 
         // transfer
@@ -230,6 +241,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         _record(from, to, pid, tokenSymbol, amountOut, message);
     }
 
+    // todo: 主要问题同上, 先根据上面的改一下吧
     function donateERC20(
         uint256 _pid,
         address _token,
