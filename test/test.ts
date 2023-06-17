@@ -60,11 +60,6 @@ describe("Donate3 Test", function () {
     const { Donate3, user, userReceive } = await loadFixture(
       deployDonateFixture,
     );
-    await Donate3.connect(user).mint(
-      user.address,
-      pidInit,
-      userReceive.address,
-    );
   }
 
   it("1. Should set the right owner", async function () {
@@ -72,82 +67,23 @@ describe("Donate3 Test", function () {
     expect(await Donate3.owner()).to.equal(owner.address);
   });
 
-  it("2. Add project", async function () {
-    const { Donate3, user, userReceive } = await loadFixture(
-      deployDonateFixture,
-    );
-    await Donate3.connect(user).mint(user.address, pid1, userReceive.address);
-    const { pid } = (await Donate3.getProjectList(user.address))[0];
-
-    expect(pid.toString()).to.equal(`${pid1}`);
-  });
-
-  it("3. Update project", async function () {
-    const { Donate3, user, userReceive, newUserReceive } = await loadFixture(
-      deployDonateFixture,
-    );
-
-    await Donate3.connect(user).mint(
-      user.address,
-      pidInit,
-      userReceive.address,
-    );
-
-    await Donate3.connect(user).updateProjectReceive(
-      user.address,
-      pidInit,
-      newUserReceive.address,
-    );
-
-    const { rAddress } = (await Donate3.getProjectList(user.address))[0];
-
-    expect(rAddress).to.equal(newUserReceive.address);
-  });
-
-  it("4. Burn project", async function () {
-    const { Donate3, user, userReceive, newUserReceive } = await loadFixture(
-      deployDonateFixture,
-    );
-
-    await Donate3.connect(user).mint(
-      user.address,
-      pidInit,
-      userReceive.address,
-    );
-
-    await Donate3.connect(user).burn(user.address, pidInit);
-
-    const { status } = (await Donate3.getProjectList(user.address))[0];
-
-    expect(status).to.equal(1);
-  });
-
-  it("5. Donate ETH", async function () {
+  it("2. Donate ETH", async function () {
     const { Donate3, user, allowListAccounts, merkleTree, userReceive } =
       await loadFixture(deployDonateFixture);
-
-    await Donate3.connect(user).mint(
-      user.address,
-      pidInit,
-      userReceive.address,
-    );
 
     // merkle tree
     const donor = allowListAccounts[0];
     const proof = merkleTree.getHexProof(keccak256(donor.address));
 
-    const project = (await Donate3.getProjectList(user.address))[0];
-
     const userBalanceBefore = await ethers.provider.getBalance(
-      project.rAddress,
+      userReceive.address,
     );
 
     const amountIn = ethers.utils.parseEther("1.51212");
 
     await Donate3.connect(donor).donateToken(
-      pidInit,
       amountIn,
-      user.address,
+      userReceive.address,
       ethers.utils.toUtf8Bytes("Hello donate3"),
       proof,
       {
@@ -156,46 +92,43 @@ describe("Donate3 Test", function () {
     );
 
     expect(
-      (await ethers.provider.getBalance(project.rAddress))._hex,
+      (await ethers.provider.getBalance(userReceive.address))._hex,
     ).to.be.equal(userBalanceBefore.add(amountIn)._hex);
   });
 
-  it("6. Donate ERC20", async function () {
-    const { Donate3, TokenA, user, allowListAccounts, merkleTree } =
+  it("3. Donate ERC20", async function () {
+    const { Donate3, TokenA, user, allowListAccounts, merkleTree,userReceive } =
       await loadFixture(deployDonateFixture);
 
-    await initProjects();
+   // await initProjects();
 
     // merkle tree
     const donor = allowListAccounts[0];
     const proof = merkleTree.getHexProof(keccak256(donor.address));
 
-    const project = (await Donate3.getProjectList(user.address))[0];
-
     await TokenA.mint(donor.address, ethers.utils.parseEther("3.77774"));
 
-    const userBalance = await TokenA.balanceOf(project.rAddress);
+    const userBalance = await TokenA.balanceOf(userReceive.address);
 
     const amountIn = ethers.utils.parseEther("2.3333");
 
     await TokenA.connect(donor).approve(Donate3.address, amountIn);
 
     await Donate3.connect(donor).donateERC20(
-      pidInit,
       TokenA.address,
       TokenASymbol,
       amountIn,
-      user.address,
+      userReceive.address,
       ethers.utils.toUtf8Bytes("Hello donate3"),
       proof,
     );
 
-    expect((await TokenA.balanceOf(project.rAddress))._hex).to.be.equal(
+    expect((await TokenA.balanceOf(userReceive.address))._hex).to.be.equal(
       userBalance.add(amountIn)._hex,
     );
   });
 
-  it("7. Withdraw token", async function () {
+  it("4. Withdraw token", async function () {
     const { Donate3, user, payee } = await loadFixture(deployDonateFixture);
 
     const payeeBalance = await ethers.provider.getBalance(payee.address);
@@ -219,7 +152,7 @@ describe("Donate3 Test", function () {
     ).to.be.equal(reserve.sub(withdraw)._hex);
   });
 
-  it("8. Withdraw ERC20", async function () {
+  it("5. Withdraw ERC20", async function () {
     const { Donate3, TokenA, payee } = await loadFixture(deployDonateFixture);
 
     const reserve = ethers.utils.parseEther("3.77774");
@@ -243,7 +176,7 @@ describe("Donate3 Test", function () {
     );
   });
 
-  it("8. Withdraw ERC20 List", async function () {
+  it("6. Withdraw ERC20 List", async function () {
     const { Donate3, TokenA, TokenB, payee } = await loadFixture(
       deployDonateFixture,
     );

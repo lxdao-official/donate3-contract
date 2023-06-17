@@ -2,41 +2,8 @@
 pragma solidity ^0.8.17;
 
 interface IDonate3 {
-    enum ProjectStatus {
-        resume,
-        suspend
-    }
-
-    // project
-    struct Project {
-        uint256 pid;
-        address payable rAddress;
-        ProjectStatus status;
-    }
-
-    function getProjectList(address pOwner)
-        external
-        view
-        returns (Project[] memory);
-
-    function setHandleFee(uint32 _fee) external;
-
-    function mint(
-        address pOwner,
-        uint256 pid,
-        address payable rAddress
-    ) external;
-
-    function burn(address pOwner, uint256 pid) external;
-
-    function updateProjectReceive(
-        address pOwner,
-        uint256 pid,
-        address payable rAddress
-    ) external;
 
     function donateToken(
-        uint256 pid,
         uint256 amountIn,
         address to,
         bytes calldata message,
@@ -44,7 +11,6 @@ interface IDonate3 {
     ) external payable;
 
     function donateERC20(
-        uint256 _pid,
         address _token,
         string calldata _tokenSymbol,
         uint256 _amountInDesired,
