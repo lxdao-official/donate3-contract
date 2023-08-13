@@ -11,6 +11,10 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./IDonate3.sol";
 
 
+interface AttestContractInterface {
+     function attestUint(bytes32 schema, address donor, address donee, uint256 amount, address token) external returns (bytes32);
+}
+
 contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     using ECDSA for bytes32;
     using SafeMath for uint256;
@@ -20,6 +24,10 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     uint32 handlingFee = 5;
 
     bytes32 private freeMerkleRoot;
+
+    address attesterAddress;
+
+    bytes32 schemaID;
 
     event HandleFeeChanged(address from, uint32 feeBefore, uint32 feeAfter);
     event FreeMerkleRootChanged(
@@ -44,8 +52,10 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         _;
     }
 
-    constructor(string memory _tokenSymbol) {
+    constructor(string memory _tokenSymbol,address _attesterAddress ,bytes32 _schemaID) {
         tokenSymbol = _tokenSymbol;
+        attesterAddress = _attesterAddress;
+        schemaID = _schemaID;
     }
 
     receive() external payable {
@@ -118,6 +128,9 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             TransferHelper.safeTransferETH(from, msg.value - amountIn);
         }
 
+        AttestContractInterface attestContract = AttestContractInterface(attesterAddress);
+        attestContract.attestUint(schemaID,  msg.sender, to,amountIn,address(0));
+
         _record(from, to, tokenSymbol, amountOut, message);
     }
 
@@ -146,6 +159,9 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
             to,
             merkleProof
         );
+
+        AttestContractInterface attestContract = AttestContractInterface(attesterAddress);
+        attestContract.attestUint(schemaID,from, to, amountInDesired, token);
 
         // record
         _record(from, to, symbol, amountOut, message);

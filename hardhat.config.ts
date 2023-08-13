@@ -1,65 +1,71 @@
+import '@nomicfoundation/hardhat-toolbox';
+import '@nomiclabs/hardhat-solhint';
+import 'hardhat-dependency-compiler';
+import { HardhatUserConfig } from 'hardhat/config';
 import * as dotenv from "dotenv";
-
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomiclabs/hardhat-etherscan";
-import "@nomiclabs/hardhat-waffle";
-import "@typechain/hardhat";
-import "hardhat-gas-reporter";
-import "solidity-coverage";
-import "hardhat-abi-exporter";
-
 dotenv.config();
 
-//add proxy to ethersacn api
-// const { setGlobalDispatcher, ProxyAgent } = require('undici');
-// const proxyAgent = new ProxyAgent('http://172.23.240.1:7890');
-// setGlobalDispatcher(proxyAgent);
 
 const config: HardhatUserConfig = {
-  solidity: {
-    version: "0.8.17",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1000,
-      },
-    },
-  },
   networks: {
-    localhost: {
-      url: "http://localhost:8545",
+    hardhat: {
+      accounts: {
+        count: 20,
+        accountsBalance: '10000000000000000000000000000000000000000000000'
+      },
+      allowUnlimitedContractSize: true
     },
-    polygonMumbai:{
-      url: process.env.MUMBAI_API_KEY_URL,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
-    goerli: {
-      url: process.env.GOERLI_API_KEY_URL,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
-    mainnet: {
-      url: process.env.ETH_MAINNER_API_KEY_URL,
+    sepolia: {
+      url: process.env.SEPOLIA_API_KEY_URL,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
   },
-  etherscan: {
-    apiKey: {
-      polygonMumbai: process.env.POLYGONSCAN_KEY,
-      goerli: process.env.ETHERSCAN_API_KEY,
-    },
-//     customChains: [
-//       {
-//         network: "polygonMumbai",
-//         chainId: 80001,
-//         urls: {
-//           apiURL: "https://api-mumbai.polygonscan.com//api",  // https => http
-//           browserURL: "https://api-mumbai.polygonscan.com"
-//         }
-//       }
-//     ]
+
+  solidity: {
+    compilers: [
+      {
+        version: '0.8.21',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000000
+          },
+          metadata: {
+            bytecodeHash: 'none'
+          }
+        }
+      },
+      {
+        version: '0.8.19',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000000
+          },
+          metadata: {
+            bytecodeHash: 'none'
+          }
+        }
+      }
+    ]
   },
+
+  dependencyCompiler: {
+    paths: [
+      '@ethereum-attestation-service/eas-contracts/contracts/EAS.sol',
+      '@ethereum-attestation-service/eas-contracts/contracts/SchemaRegistry.sol'
+    ]
+  },
+
+  typechain: {
+    target: 'ethers-v6'
+  },
+
+  mocha: {
+    color: true,
+    bail: true
+  }
 };
 
 export default config;

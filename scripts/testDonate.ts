@@ -2,7 +2,7 @@ import { ethers,network,artifacts } from "hardhat";
 
 async function main() {
   const [admin, user] = await ethers.getSigners();
-  const Address = "0xbdEA24f8657eC8AD679b8bCcc761EcEE9600667e";
+  const Address = "0x1D9021fbE80a7Ce13897B5757b25296d62dDe698";
   const factory = await ethers.getContractFactory("Donate3");
   const Donate3 = await factory.attach(Address);
 
@@ -11,14 +11,13 @@ async function main() {
   console.log(amountIn);
   const proof = [];
   const pidInit = 123456;
-  const ownerAddress = "0x2a3779072440bc6dEb94E89Ba44AB28f7b84FF1c";
+  const donnerAddress = "0x57123a01dB689c7B0fD79CB136da065b75b42F7b";
   const text = "Hello, world test donate!";
   const utf8Bytes = Buffer.from(text, 'utf-8');
 
   await Donate3.connect(admin).donateToken(
-    pidInit,
     amountIn,
-    ownerAddress,
+    donnerAddress,
     //ethers.utils.toUtf8Bytes("Hello donate3"),
     utf8Bytes,
     proof,

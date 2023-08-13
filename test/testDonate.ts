@@ -106,11 +106,11 @@ describe("Donate3 Test", function () {
     const donor = allowListAccounts[0];
     const proof = merkleTree.getHexProof(keccak256(donor.address));
 
-    await TokenA.mint(donor.address, ethers.utils.parseEther("3.77774"));
+    await TokenA.mint(donor.address, ethers.parseEther("3.77774"));
 
     const userBalance = await TokenA.balanceOf(userReceive.address);
 
-    const amountIn = ethers.utils.parseEther("2.3333");
+    const amountIn = ethers.parseEther("2.3333");
 
     await TokenA.connect(donor).approve(Donate3.address, amountIn);
 
@@ -119,7 +119,7 @@ describe("Donate3 Test", function () {
       TokenASymbol,
       amountIn,
       userReceive.address,
-      ethers.utils.toUtf8Bytes("Hello donate3"),
+      ethers.toUtf8Bytes("Hello donate3"),
       proof,
     );
 
@@ -133,8 +133,8 @@ describe("Donate3 Test", function () {
 
     const payeeBalance = await ethers.provider.getBalance(payee.address);
 
-    const reserve = ethers.utils.parseEther("2.3333");
-    const withdraw = ethers.utils.parseEther("1.56464646");
+    const reserve = ethers.parseEther("2.3333");
+    const withdraw = ethers.parseEther("1.56464646");
 
     await user.sendTransaction({
       to: Donate3.address,
@@ -155,8 +155,8 @@ describe("Donate3 Test", function () {
   it("5. Withdraw ERC20", async function () {
     const { Donate3, TokenA, payee } = await loadFixture(deployDonateFixture);
 
-    const reserve = ethers.utils.parseEther("3.77774");
-    const withdraw = ethers.utils.parseEther("2.533454646");
+    const reserve = ethers.parseEther("3.77774");
+    const withdraw = ethers.parseEther("2.533454646");
 
     await TokenA.mint(Donate3.address, reserve);
 
@@ -181,8 +181,8 @@ describe("Donate3 Test", function () {
       deployDonateFixture,
     );
 
-    const reserve = ethers.utils.parseEther("3.77774");
-    const withdrawTokenA = ethers.utils.parseEther("2.533454646");
+    const reserve = ethers.parseEther("3.77774");
+    const withdrawTokenA = ethers.parseEther("2.533454646");
     const withdrawTokenB = ethers.utils.parseEther("1.3333");
 
     await TokenA.mint(Donate3.address, reserve);
