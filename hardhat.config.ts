@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
     localhost: {
       url: "http://localhost:8545",
     },
-    polygonMumbai:{
+    polygonMumbai: {
       url: process.env.MUMBAI_API_KEY_URL,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -43,22 +43,41 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    optimisticEthereum: {
+      url: process.env.OP_API_KEY_URL,
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    linea: {
+      url: process.env.LINEA_API_KEY_URL,
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    arbitrumOne: {
+      url: process.env.ARB_API_KEY_URL,
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: {
       polygonMumbai: process.env.POLYGONSCAN_KEY,
-      goerli: process.env.ETHERSCAN_API_KEY,
+      goerli: process.env.ETHERSCAN_KEY,
+      mainnet: process.env.ETHERSCAN_KEY,
+      optimisticEthereum: process.env.OPSCAN_KEY,
+      linea: process.env.LINEASCAN_KEY,
+      arbitrumOne: process.env.ARBSCAN_KEY,
     },
-//     customChains: [
-//       {
-//         network: "polygonMumbai",
-//         chainId: 80001,
-//         urls: {
-//           apiURL: "https://api-mumbai.polygonscan.com//api",  // https => http
-//           browserURL: "https://api-mumbai.polygonscan.com"
-//         }
-//       }
-//     ]
+    customChains: [
+      {
+        network: "linea",
+        chainId: 59144,
+        urls: {
+          apiURL: "https://api.lineascan.build/api",  // https => http
+          browserURL: "https://api-mumbai.polygonscan.com"
+        }
+      }
+    ]
   },
 };
 
