@@ -1,13 +1,20 @@
-# Sample Hardhat Project
+/**
+ * eas address 
+ */
+// sepolia 
+// eas schemaId: 0x2fd8b1cc54de5cabcf62ecaa1f6f3317a980769aab4470396e5c912bfe325752
+// attester address: 0x75C6eDBAE13C0989b3191Fbe4c940df61DDe96BE
+// resolver address: 0xD94C5a8915AF66650DC66adeC4eE658Ea6428cbe
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+//opt goerli
+// eas schemaId: 0x169f0b9c35c7520a5078ed31fda83eed6f9f15ec38299319c201cf8eb3e0712c
+// attester address: 0xD9baA9416821f9eAAE2A8A1de13BfcC10aA3bd71
+// resolver address: 0xd664d474496B90B4c3663bAbdb90A7D05B6A7d1a
 
-Try running some of the following tasks:
+/**
+ * doante3 address 
+ */
+//0xf1f5219C777E44BCd2c2C43b6aCe2458169c0579 donate sepolia
+//0x39fF8a675ffBAfc177a7C54556b815163521a8B7 donate opt goerli
 
-```shell
-npx hardhat help
-npx hardhat test
-GAS_REPORT=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.ts
-```
+//https://sepolia.etherscan.io/address/0xf1f5219C777E44BCd2c2C43b6aCe2458169c0579#code
