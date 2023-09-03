@@ -20,12 +20,17 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    optimisticGoerli: {
+      url: process.env.OP_GOERLI_API_KEY_URL,
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
   },
 
   solidity: {
     compilers: [
       {
-        version: '0.8.21',
+        version: '0.8.17',
         settings: {
           optimizer: {
             enabled: true,
@@ -50,7 +55,12 @@ const config: HardhatUserConfig = {
       }
     ]
   },
-
+  etherscan: {
+    apiKey: {
+    sepolia:''
+    //  optimisticGoerli: ''
+    }
+  },
   dependencyCompiler: {
     paths: [
       '@ethereum-attestation-service/eas-contracts/contracts/EAS.sol',

@@ -18,12 +18,12 @@ async function main() {
     // registry = await Contracts.SchemaRegistry.deploy();
     //eas = await Contracts.EAS.deploy(await registry.getAddress());
 
-    let easAddress =  "0xC2679fBD37d54388Ce493F1DB75320D236e1815e";
+    let easAddress =  "0x4200000000000000000000000000000000000021";
     attester = await Contracts.ExampleAttester.deploy(easAddress);
     resolver = await Contracts.ExampleUintResolver.deploy(easAddress);
 
     const [admin, user] = await ethers.getSigners();
-    const registerAddress = "0x0a7E2Ff54e76B8E6659aedc9103FB21c038050D0";
+    const registerAddress = "0x4200000000000000000000000000000000000020";
     const registry = new ethers.Contract(registerAddress, SchemaRegistryABI.abi, admin);
 
     await registry.register(schema, await resolver.getAddress(), true);

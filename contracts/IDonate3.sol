@@ -3,21 +3,13 @@ pragma solidity ^0.8.17;
 
 interface IDonate3 {
 
-    function donateToken(
-        uint256 amountIn,
-        address to,
-        bytes calldata message,
-        bytes32[] calldata _merkleProof
-    ) external payable;
-
-    function donateERC20(
+    function donate(
         address _token,
-        string calldata _tokenSymbol,
         uint256 _amountInDesired,
         address _to,
         bytes calldata _message,
         bytes32[] calldata _merkleProof
-    ) external;
+    ) external payable;
 
     function withDrawToken(address to, uint256 amount) external;
 

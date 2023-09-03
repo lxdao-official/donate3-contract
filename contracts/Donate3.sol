@@ -10,7 +10,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./IDonate3.sol";
 
-
 interface AttestContractInterface {
      function attestUint(bytes32 schema, address donor, address donee, uint256 amount, address token) external returns (bytes32);
 }
@@ -21,7 +20,7 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
 
     string public tokenSymbol;
 
-    uint32 handlingFee = 5;
+    uint32 handlingFee = 0;
 
     bytes32 private freeMerkleRoot;
 
@@ -38,7 +37,6 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     event donateRecord(
         address from,
         address to,
-        bytes32 symbol,
         uint256 amount,
         bytes msg
     );
@@ -91,80 +89,55 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
         return MerkleProof.verify(_merkleProof, freeMerkleRoot, leaf);
     }
 
-    function donateToken(
-        uint256 amountIn,
-        address to,
-        bytes calldata message,
-        bytes32[] calldata _merkleProof
-    ) external payable nonReentrant {
-        address from = _msgSender();
-        require(from != to, "The donor address is equal to receive");
-
-        require(amountIn > 0, "Invalid input amount.");
-
-        require(msg.value == amountIn,"msg value error.");
-        
-       // Project memory p = _findProject(to, pid);
-        require(address(to) != address(0), "The project is not exist");
-
-       // require(p.status == ProjectStatus.resume, "The project is deleted");
-
-        uint32 fee = _merkleProof.length > 0 &&
-            _verifyFreeAllowList(from, _merkleProof)
-            ? 0
-            : handlingFee;
-
-        uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
-        require(amountOut <= amountIn, "Invalid output amount");
-
-        // transfer
-        (bool success, ) = to.call{value: amountOut}("");
-        if (!success) {
-            revert CallFailed();
-        }
-
-        // refund dust eth, if any
-        if (msg.value > amountIn) {
-            TransferHelper.safeTransferETH(from, msg.value - amountIn);
-        }
-
-        AttestContractInterface attestContract = AttestContractInterface(attesterAddress);
-        attestContract.attestUint(schemaID,  msg.sender, to,amountIn,address(0));
-
-        _record(from, to, tokenSymbol, amountOut, message);
-    }
-
-    function donateERC20(
+    function donate(
         address _token,
-        string calldata _tokenSymbol,
         uint256 _amountInDesired,
         address _to,
         bytes calldata _message,
         bytes32[] calldata _merkleProof
-    ) external nonReentrant {
+    ) external payable nonReentrant{
+
         address from = _msgSender();
-        string calldata symbol = _tokenSymbol;
         bytes calldata message = _message;
         address token = _token;
         bytes32[] calldata merkleProof = _merkleProof;
         uint256 amountInDesired = _amountInDesired;
-
         address to = _to;
+
+        require(address(to) != address(0), "The project is not exist");
         require(from != to, "The donor address is equal to receive");
+        require(amountInDesired > 0, "Invalid input amount.");
+        
+        uint256 amountOut = _getAmount(from, amountInDesired, merkleProof);
+        require(amountOut <= amountInDesired, "Invalid output amount");
 
-        uint256 amountOut = _transferToken(
-            token,
-            from,
-            amountInDesired,
-            to,
-            merkleProof
-        );
+     
+        if(token == address(0)){        //donate ETH
+            // transfer
+            (bool success, ) = to.call{value: amountOut}("");
+            if (!success) {
+                revert CallFailed();
+            }
 
+            // refund dust eth, if any
+            if (msg.value > amountOut) {
+                TransferHelper.safeTransferETH(from, msg.value - amountOut);
+            }
+        }else{
+            uint256 amountOut = _transferToken(
+                token,
+                from,
+                amountInDesired,
+                to,
+                merkleProof
+            );
+        }
+        
         AttestContractInterface attestContract = AttestContractInterface(attesterAddress);
         attestContract.attestUint(schemaID,from, to, amountInDesired, token);
 
         // record
-        _record(from, to, symbol, amountOut, message);
+        _record(from, to, amountOut, message);
     }
 
     function _transferToken(
@@ -210,12 +183,11 @@ contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
     function _record(
         address from,
         address to,
-        string memory symbol,
         uint256 amountOut,
         bytes calldata message
     ) internal {
-        bytes32 symbolBytes = stringToBytes32(symbol);
-        emit donateRecord(from, to, symbolBytes, amountOut, message);
+        //bytes32 symbolBytes = stringToBytes32(symbol);
+        emit donateRecord(from, to, amountOut, message);
     }
 
     function stringToBytes32(string memory source)
